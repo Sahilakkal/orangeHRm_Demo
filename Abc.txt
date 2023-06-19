@@ -1,0 +1,54 @@
+import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score
+import tkinter as tk
+
+# Load the dataset
+dataset = pd.read_csv('your_dataset.csv')
+
+# Split the dataset into features (source code) and labels (safety)
+features = dataset['source code']
+labels = dataset['Safety']
+
+# Convert source code to numerical features using TF-IDF vectorization
+vectorizer = TfidfVectorizer(ngram_range=(1, 2), max_features=5000)
+features = vectorizer.fit_transform(features)
+
+# Split the dataset into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(features, labels, test_size=0.2, random_state=42)
+
+# Train the model
+model = RandomForestClassifier(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
+
+# Evaluate the model
+y_pred = model.predict(X_test)
+accuracy = accuracy_score(y_test, y_pred)
+print(f'Accuracy: {accuracy:.2f}')
+
+# Create an interface using tkinter
+def predict_safety():
+    code = text_input.get("1.0", "end-1c")
+    code_features = vectorizer.transform([code])
+    prediction = model.predict(code_features)[0]
+    output_label.config(text=f'Safety Prediction: {prediction}')
+
+root = tk.Tk()
+root.title("Code Safety Prediction")
+root.geometry("600x400")
+
+text_label = tk.Label(root, text="Enter source code:")
+text_label.pack()
+
+text_input = tk.Text(root, height=10, width=60)
+text_input.pack()
+
+predict_button = tk.Button(root, text="Predict Safety", command=predict_safety)
+predict_button.pack()
+
+output_label = tk.Label(root, text="")
+output_label.pack()
+
+root.mainloop()
