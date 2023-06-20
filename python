@@ -1,0 +1,174 @@
+
+
+# Import the necessary libraries
+
+import pandas as pd
+import random
+import numpy as np
+import tensorflow as tf
+tf.compat.v1.disable_eager_execution()
+gpus=tf.config.experimental.list_physical_devices('GPU')
+if gpus:
+    try:
+        for gpu in gpus:
+            y=tf.config.experimental.set_memory_growth(gpu,True)
+            
+    except RuntimeError as e:
+        print(e)
+        
+
+from sklearn.model_selection import train_test_split
+
+from sklearn.preprocessing import LabelEncoder
+
+from tensorflow.keras.models import Sequential
+
+from tensorflow.keras.layers import Embedding, LSTM, Dense
+
+from tensorflow.keras.preprocessing.text import Tokenizer
+
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+
+from tensorflow.keras.utils import to_categorical
+
+from flask import Flask, request, render_template
+
+# Load the dataset
+
+dataset = pd.read_csv('C:\\Users\\abhoil\\Downloads\\CVEFixes.csv')  # Update with your dataset file path
+
+sample_size=10
+dataset_sample=dataset.sample(n=sample_size,random_state=42)
+# Preprocess the dataset
+
+# Remove any unwanted characters or symbols from code snippets
+
+dataset['code'] = dataset['code'].str.replace('[^a-zA-Z0-9\s]', '')
+
+# Convert the 'Safety' column to lowercase
+
+dataset['safety'] = dataset['safety'].astype(str).str.lower()
+
+# Split the dataset into train, validation, and test sets
+
+train_data, test_data, train_labels, test_labels = train_test_split(dataset['code'], dataset['safety'], test_size=0.2, random_state=42)
+
+train_data, val_data, train_labels, val_labels = train_test_split(train_data, train_labels, test_size=0.2, random_state=42)
+
+# Tokenize the code snippets
+train_data=train_data.astype(str)
+train_data=train_data.apply(lambda x:x.lower() if isinstance(x,str) else '')
+
+tokenizer = Tokenizer()
+tokenizer.fit_on_texts(train_data)
+
+vocab_size = len(tokenizer.word_index) + 1
+
+max_length = max([len(code.split()) for code in train_data])
+
+# Convert text to sequences
+
+train_sequences = tokenizer.texts_to_sequences(train_data)
+
+val_data=val_data.astype(str)
+val_data=val_data.apply(lambda x:x.lower() if isinstance(x,str) else '')
+val_sequences = tokenizer.texts_to_sequences(val_data)
+
+test_data=test_data.astype(str)
+test_data=test_data.apply(lambda x:x.lower() if isinstance(x,str) else '')
+test_sequences = tokenizer.texts_to_sequences(test_data)
+
+# Pad sequences to have consistent length
+
+train_padded = pad_sequences(train_sequences, maxlen=max_length, padding='post')
+
+val_padded = pad_sequences(val_sequences, maxlen=max_length, padding='post')
+
+test_padded = pad_sequences(test_sequences, maxlen=max_length, padding='post')
+
+# Encode labels
+
+label_encoder = LabelEncoder()
+
+train_labels_encoded = label_encoder.fit_transform(train_labels)
+
+val_labels_encoded = label_encoder.transform(val_labels)
+
+test_labels_encoded = label_encoder.transform(test_labels)
+
+# Convert labels to categorical format
+
+num_classes = len(np.unique(train_labels_encoded))
+
+train_labels_categorical = to_categorical(train_labels_encoded, num_classes=num_classes)
+
+val_labels_categorical = to_categorical(val_labels_encoded, num_classes=num_classes)
+
+test_labels_categorical = to_categorical(test_labels_encoded, num_classes=num_classes)
+
+# Create the model
+
+model = Sequential()
+
+model.add(Embedding(vocab_size, 100, input_length=max_length))  # Update embedding dimension if needed
+
+model.add(LSTM(64))
+
+model.add(Dense(64, activation='relu'))
+
+model.add(Dense(num_classes, activation='softmax'))
+
+# Compile the model
+
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+# Train the model
+train_data_subset=train_padded[:100]
+train_labels_subset=train_labels_categorical[:100]
+model.fit(train_data_subset, train_labels_subset, epochs=3, batch_size=16, validation_data=(val_padded, val_labels_categorical))
+
+# Evaluate the model
+
+loss, accuracy = model.evaluate(test_padded, test_labels_categorical, verbose=1)
+
+print('Test Loss:', loss)
+
+print('Test Accuracy:', accuracy)
+
+#Create the Flask application
+
+app = Flask(__name__)
+
+# Home route
+
+@app.route('/')
+
+def home():
+
+    return render_template('index.html')
+
+# Prediction route
+
+@app.route('/predict', methods=['POST'])
+
+def predict():
+
+    code = request.form['code']
+
+    code_sequence = tokenizer.texts_to_sequences([code])
+
+    code_padded = pad_sequences(code_sequence, maxlen=max_length, padding='post')
+
+    prediction = model.predict(code_padded)
+
+    predicted_class = label_encoder.inverse_transform([np.argmax(prediction)])[0]
+
+    return render_template('new1.html', code=code, prediction=predicted_class)
+ 
+# Run the Flask application
+
+if __name__ == '__main__':
+
+    app.run(debug=True)
+
+
