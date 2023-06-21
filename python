@@ -1,77 +1,31 @@
-import pandas as pd
-import numpy as np
-import tensorflow as tf
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Embedding, LSTM, Dense
-from tensorflow.keras.preprocessing.text import Tokenizer
-from tensorflow.keras.preprocessing.sequence import pad_sequences
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
-from flask import Flask, render_template, request
-from tensorflow.keras.models import load_model
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Requirements to User Stories</title>
+</head>
+<body>
+    <h1>Requirements to User Stories</h1>
+    <form action="/predict" method="post">
+        <label for="requirement">Enter Requirement:</label><br>
+        <textarea id="requirement" name="requirement" rows="4" cols="50"></textarea><br>
+        <input type="submit" value="Submit">
+    </form>
+</body>
+</html>
 
-# Load the dataset
-dataset = pd.read_csv('your_dataset.csv')
 
-# Preprocess the dataset
-dataset['Requirements'] = dataset['Requirements'].str.lower()
-dataset['UserStory'] = dataset['UserStory'].str.lower()
 
-# Split the dataset into input (requirements) and output (user stories)
-X = dataset['Requirements'].values
-y = dataset['UserStory'].values
 
-# Tokenize the input text
-tokenizer = Tokenizer()
-tokenizer.fit_on_texts(X)
-vocab_size = len(tokenizer.word_index) + 1
-max_length = max([len(text.split()) for text in X])
-X = tokenizer.texts_to_sequences(X)
-X = pad_sequences(X, maxlen=max_length, padding='post')
-
-# Split the data into train and test sets
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-# Create the model
-model = Sequential()
-model.add(Embedding(vocab_size, 100, input_length=max_length))
-model.add(LSTM(64))
-model.add(Dense(64, activation='relu'))
-model.add(Dense(vocab_size, activation='softmax'))
-
-# Compile the model
-model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
-
-# Train the model
-model.fit(X_train, y_train, epochs=10, batch_size=16, validation_split=0.2)
-
-# Evaluate the model
-y_pred = model.predict_classes(X_test)
-accuracy = accuracy_score(y_test, y_pred)
-print('Test Accuracy:', accuracy)
-
-# Save the trained model
-model.save('user_story_model.h5')
-
-# Load the saved model
-model = load_model('user_story_model.h5')
-tokenizer = Tokenizer()
-tokenizer.fit_on_texts(dataset['Requirements'].values)
-
-app = Flask(__name__)
-
-@app.route('/')
-def home():
-    return render_template('index.html')
-
-@app.route('/predict', methods=['POST'])
-def predict():
-    requirement = request.form['requirement']
-    requirement_sequence = tokenizer.texts_to_sequences([requirement])
-    requirement_padded = pad_sequences(requirement_sequence, maxlen=max_length, padding='post')
-    user_story = model.predict_classes(requirement_padded)
-    user_story = tokenizer.sequences_to_texts(user_story)
-    return render_template('result.html', requirement=requirement, user_story=user_story)
-
-if __name__ == '__main__':
-    app.run(debug=True)
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Requirements to User Stories</title>
+</head>
+<body>
+    <h1>Requirements to User Stories</h1>
+    <h2>Input Requirement:</h2>
+    <p>{{ requirement }}</p>
+    <h2>Predicted User Story:</h2>
+    <p>{{ user_story }}</p>
+</body>
+</html>
