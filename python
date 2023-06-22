@@ -1,51 +1,73 @@
 import pandas as pd
-from sklearn.feature_extraction.text import CountVectorizer
+import numpy as np
 from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LogisticRegression
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Embedding, LSTM, Dense
 
-# Define the dataset
-data = {
-    'Domain': ['Enterprise Software', 'Enterprise Software', 'Enterprise Software',
-               'Enterprise Software', 'Enterprise Software', 'Enterprise Software',
-               'Enterprise Software', 'Enterprise Software', 'Enterprise Software'],
-    'Requirements': ['User Management', 'User Management', 'User Management',
-                     'Financial Management', 'Financial Management', 'Financial Management',
-                     'Inventory Management', 'Inventory Management', 'Sales and Order Management'],
-    'User Story': ['As an administrator, I want to be able to create new user accounts, assign roles, and manage permissions easily',
-                   'As a user, I want to be able to reset my password securely',
-                   'As a manager, I want to view user activity logs for auditing purposes',
-                   'As a finance manager, I want to generate financial reports, such as balance sheets and income statements, for accurate financial analysis and decision-making.',
-                   'As an accountant, I want to record and reconcile financial transactions efficiently.',
-                   'As a CFO, I want to monitor budget utilization and track key financial metrics.',
-                   'As a warehouse manager, I want to track inventory levels in real-time, receive alerts for low stock, and generate purchase orders automatically when stock reaches a reorder point.',
-                   'As a procurement officer, I want to maintain a centralized product catalog with SKU information and pricing details.',
-                   'As a sales representative, I want to create and manage customer orders efficiently, track their status, and generate invoices for timely payment processing']
-}
-
-# Create a DataFrame from the dataset
-df = pd.DataFrame(data)
+# Load the dataset
+dataset = pd.read_csv('your_dataset.csv')
 
 # Preprocess the dataset
+tokenizer = Tokenizer()
+tokenizer.fit_on_texts(dataset['User Story'])
+sequences = tokenizer.texts_to_sequences(dataset['User Story'])
+word_index = tokenizer.word_index
+max_sequence_length = max(len(sequence) for sequence in sequences)
+padded_sequences = pad_sequences(sequences, maxlen=max_sequence_length)
+
+# Split the dataset into train and test sets
+X = np.array([dataset['Requirement Label'], dataset['Domain Label']]).T
+y = np.array(padded_sequences)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Build the model
+vocab_size = len(word_index) + 1
+embedding_dim = 100
+
+model = Sequential()
+model.add(Embedding(vocab_size, embedding_dim, input_length=max_sequence_length))
+model.add(LSTM(128))
+model.add(Dense(max_sequence_length, activation='softmax'))
+
+model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+# Train the model
+model.fit(X_train, y_train, validation_data=(X_test, y_test), epochs=10, batch_size=32)
+
+# Save the trained model
+model.save('trained_model.h5')
+
+
+
+
+
+
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.linear_model import LogisticRegression
+
+# Load the data from an Excel file
+df = pd.read_excel('C:\\Users\\mansidhingra\\Documents\\dataset.xlsx')
+
+print(df)
+
+# Perform data preprocessing
+df['text'] = df['empname'] + ' ' + df['skills'] + ' ' + df['jobtitle'] + ' ' + df['reviews']
+df['positive_feedback'] = df['positive_feedback'].map({'Yes': 1, 'No': 0})
+
+# Split the data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(df['text'], df['positive_feedback'], test_size=0.2, random_state=42)
+
+# Vectorize the text data
 vectorizer = CountVectorizer()
-X = vectorizer.fit_transform(df['User Story'])
-y_domain = df['Domain']
-y_requirement = df['Requirements']
+X_train_vectorized = vectorizer.fit_transform(X_train)
 
-# Split the data into train and test sets
-X_train, X_test, y_domain_train, y_domain_test, y_requirement_train, y_requirement_test = train_test_split(
-    X, y_domain, y_requirement, test_size=0.2, random_state=42)
-
-# Train a logistic regression classifier for domain classification
-domain_classifier = LogisticRegression()
-domain_classifier.fit(X_train, y_domain_train)
-
-# Train a logistic regression classifier for requirement classification
-requirement_classifier = LogisticRegression()
-requirement_classifier.fit(X_train, y_requirement_train)
-
-# Evaluate the classifiers
-domain_accuracy = domain_classifier.score(X_test, y_domain_test)
-requirement_accuracy = requirement_classifier.score(X_test, y_requirement_test)
-
-print(f"Domain Classifier Accuracy: {domain_accuracy}")
-print(f"Requirement Classifier Accuracy: {requirement_accuracy}")
+# Train a logistic regression model
+model = LogisticRegression()
+model.fit(X_train_vectorized, y_train)
+X_test_vectorized = vectorizer.transform(X_test)
+accuracy = model.score(X_test_vectorized, y_test)
+print("Model accuracy:", accuracy)
