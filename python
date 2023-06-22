@@ -1,86 +1,22 @@
-from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Input, LSTM, Dense
-from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.preprocessing.sequence import pad_sequences
-from tensorflow.keras.utils import to_categorical
-import numpy as np
+from tensorflow.keras.models import load_model
 
-# Input and output data
-requirements = [
-    "As an administrator, I want to be able to create new user accounts, assign roles, and manage permissions easily",
-    "As a user, I want to be able to reset my password securely",
-    "As a manager, I want to view user activity logs for auditing purposes"
-]
-user_stories = [
-    "Create new user accounts, assign roles, and manage permissions easily",
-    "Reset password securely",
-    "View user activity logs for auditing purposes"
-]
+# Load the trained model and tokenizers
+model = load_model('seq2seq_model.h5')
+input_tokenizer = load_tokenizer('input_tokenizer.pkl')
+output_tokenizer = load_tokenizer('output_tokenizer.pkl')
+max_input_length = 100  # Maximum input sequence length
 
-# Tokenize the input sequences
-input_tokenizer = Tokenizer()
-input_tokenizer.fit_on_texts(requirements)
-input_sequences = input_tokenizer.texts_to_sequences(requirements)
+# User input requirement
+input_requirement = "As an administrator, I want to be able to create new user accounts, assign roles, and manage permissions easily"
 
-# Tokenize the output sequences
-output_tokenizer = Tokenizer()
-output_tokenizer.fit_on_texts(user_stories)
-output_sequences = output_tokenizer.texts_to_sequences(user_stories)
+# Preprocess the input requirement
+input_sequence = input_tokenizer.texts_to_sequences([input_requirement])
+input_sequence = pad_sequences(input_sequence, maxlen=max_input_length, padding='post')
 
-# Get vocabulary sizes
-input_vocab_size = len(input_tokenizer.word_index) + 1
-output_vocab_size = len(output_tokenizer.word_index) + 1
+# Generate the user story
+predicted_sequence = model.predict(input_sequence)
+generated_story = output_tokenizer.sequences_to_texts(predicted_sequence)[0]
 
-# Pad sequences
-max_input_length = max(len(seq) for seq in input_sequences)
-max_output_length = max(len(seq) for seq in output_sequences)
-input_sequences = pad_sequences(input_sequences, maxlen=max_input_length, padding='post')
-output_sequences = pad_sequences(output_sequences, maxlen=max_output_length, padding='post')
-
-# Generate decoder input and output sequences
-decoder_input_sequences = output_sequences[:, :-1]
-decoder_output_sequences = output_sequences[:, 1:]
-
-# Convert decoder output sequences to one-hot encoding
-decoder_output_sequences = to_categorical(decoder_output_sequences, num_classes=output_vocab_size)
-
-# Define the model
-latent_dim = 256
-
-# Encoder
-encoder_inputs = Input(shape=(max_input_length,))
-encoder_embedding = Embedding(input_vocab_size, latent_dim)(encoder_inputs)
-encoder_outputs, state_h, state_c = LSTM(latent_dim, return_state=True)(encoder_embedding)
-encoder_states = [state_h, state_c]
-
-# Decoder
-decoder_inputs = Input(shape=(max_output_length-1,))
-decoder_embedding = Embedding(output_vocab_size, latent_dim)(decoder_inputs)
-decoder_lstm = LSTM(latent_dim, return_sequences=True, return_state=True)
-decoder_outputs, _, _ = decoder_lstm(decoder_embedding, initial_state=encoder_states)
-decoder_dense = Dense(output_vocab_size, activation='softmax')
-decoder_outputs = decoder_dense(decoder_outputs)
-
-# Define the model
-model = Model([encoder_inputs, decoder_inputs], decoder_outputs)
-
-# Compile the model
-model.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics=['accuracy'])
-
-# Train the model
-batch_size = 1
-epochs = 50
-model.fit([input_sequences, decoder_input_sequences], decoder_output_sequences, batch_size=batch_size, epochs=epochs)
-
-# Inference
-encoder_model = Model(encoder_inputs, encoder_states)
-
-decoder_state_input_h = Input(shape=(latent_dim,))
-decoder_state_input_c = Input(shape=(latent_dim,))
-decoder_states_inputs = [decoder_state_input_h, decoder_state_input_c]
-
-decoder_outputs, state_h, state_c = decoder_lstm(decoder_embedding, initial_state=decoder_states_inputs)
-decoder_states = [state_h, state_c]
-
-decoder_outputs = decoder_dense(decoder_outputs)
-decoder_model = Model([decoder_inputs] + decoder_states_inputs, [decoder_outputs] + decoder_states
+# Print the generated user story
+print("Generated User Story:", generated_story)
