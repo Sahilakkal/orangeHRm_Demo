@@ -1,55 +1,51 @@
-import tkinter as tk
-from tkinter import messagebox
-import numpy as np
-from tensorflow.keras.models import load_model
-from tensorflow.keras.preprocessing.sequence import pad_sequences
-from tensorflow.keras.preprocessing.text import Tokenizer
+import pandas as pd
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
 
-# Load the tokenizer
-tokenizer = Tokenizer()
-tokenizer.fit_on_texts([''])  # Pass empty list to avoid an error, tokenizer will not be used for prediction
+# Define the dataset
+data = {
+    'Domain': ['Enterprise Software', 'Enterprise Software', 'Enterprise Software',
+               'Enterprise Software', 'Enterprise Software', 'Enterprise Software',
+               'Enterprise Software', 'Enterprise Software', 'Enterprise Software'],
+    'Requirements': ['User Management', 'User Management', 'User Management',
+                     'Financial Management', 'Financial Management', 'Financial Management',
+                     'Inventory Management', 'Inventory Management', 'Sales and Order Management'],
+    'User Story': ['As an administrator, I want to be able to create new user accounts, assign roles, and manage permissions easily',
+                   'As a user, I want to be able to reset my password securely',
+                   'As a manager, I want to view user activity logs for auditing purposes',
+                   'As a finance manager, I want to generate financial reports, such as balance sheets and income statements, for accurate financial analysis and decision-making.',
+                   'As an accountant, I want to record and reconcile financial transactions efficiently.',
+                   'As a CFO, I want to monitor budget utilization and track key financial metrics.',
+                   'As a warehouse manager, I want to track inventory levels in real-time, receive alerts for low stock, and generate purchase orders automatically when stock reaches a reorder point.',
+                   'As a procurement officer, I want to maintain a centralized product catalog with SKU information and pricing details.',
+                   'As a sales representative, I want to create and manage customer orders efficiently, track their status, and generate invoices for timely payment processing']
+}
 
-# Load the trained model
-model = load_model('trained_model.h5')
+# Create a DataFrame from the dataset
+df = pd.DataFrame(data)
 
-# Maximum length of code snippets
-MAX_LENGTH = 100  # Update with the maximum length used during training
+# Preprocess the dataset
+vectorizer = CountVectorizer()
+X = vectorizer.fit_transform(df['User Story'])
+y_domain = df['Domain']
+y_requirement = df['Requirements']
 
-# Function to preprocess the code snippet
-def preprocess_code(code):
-    code_sequence = tokenizer.texts_to_sequences([code])
-    code_padded = pad_sequences(code_sequence, maxlen=MAX_LENGTH, padding='post')
-    return code_padded
+# Split the data into train and test sets
+X_train, X_test, y_domain_train, y_domain_test, y_requirement_train, y_requirement_test = train_test_split(
+    X, y_domain, y_requirement, test_size=0.2, random_state=42)
 
-# Function to perform prediction
-def predict():
-    code = code_entry.get()
+# Train a logistic regression classifier for domain classification
+domain_classifier = LogisticRegression()
+domain_classifier.fit(X_train, y_domain_train)
 
-    # Preprocess the new code snippet
-    code_padded = preprocess_code(code)
+# Train a logistic regression classifier for requirement classification
+requirement_classifier = LogisticRegression()
+requirement_classifier.fit(X_train, y_requirement_train)
 
-    # Generate prediction
-    prediction = model.predict(code_padded)
-    predicted_class = np.argmax(prediction)
+# Evaluate the classifiers
+domain_accuracy = domain_classifier.score(X_test, y_domain_test)
+requirement_accuracy = requirement_classifier.score(X_test, y_requirement_test)
 
-    # Show prediction result
-    class_names = ['safe', 'vulnerable']  # Update with your actual class labels used during training
-    messagebox.showinfo("Prediction Result", f"The code snippet is classified as: {class_names[predicted_class]}")
-
-# Create the Tkinter GUI window
-window = tk.Tk()
-window.title("Code Classification")
-window.geometry("400x200")
-
-# Create the code entry field
-code_label = tk.Label(window, text="Enter code snippet:")
-code_label.pack()
-code_entry = tk.Entry(window)
-code_entry.pack()
-
-# Create the predict button
-predict_button = tk.Button(window, text="Predict", command=predict)
-predict_button.pack()
-
-# Run the Tkinter event loop
-window.mainloop()
+print(f"Domain Classifier Accuracy: {domain_accuracy}")
+print(f"Requirement Classifier Accuracy: {requirement_accuracy}")
