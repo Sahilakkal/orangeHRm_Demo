@@ -1,9 +1,9 @@
 import tkinter as tk
 from tkinter import messagebox
+import numpy as np
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tensorflow.keras.preprocessing.text import Tokenizer
-from sklearn.preprocessing import LabelEncoder
 
 # Load the tokenizer
 tokenizer = Tokenizer()
@@ -12,27 +12,29 @@ tokenizer.fit_on_texts([''])  # Pass empty list to avoid an error, tokenizer wil
 # Load the trained model
 model = load_model('trained_model.h5')
 
-# Load the label encoder
-label_encoder = LabelEncoder()
-label_encoder.classes_ = ['safe', 'vulnerable']  # Update with your actual class labels used during training
-
 # Maximum length of code snippets
 MAX_LENGTH = 100  # Update with the maximum length used during training
+
+# Function to preprocess the code snippet
+def preprocess_code(code):
+    code_sequence = tokenizer.texts_to_sequences([code])
+    code_padded = pad_sequences(code_sequence, maxlen=MAX_LENGTH, padding='post')
+    return code_padded
 
 # Function to perform prediction
 def predict():
     code = code_entry.get()
 
     # Preprocess the new code snippet
-    code_sequence = tokenizer.texts_to_sequences([code])
-    code_padded = pad_sequences(code_sequence, maxlen=MAX_LENGTH, padding='post')
+    code_padded = preprocess_code(code)
 
     # Generate prediction
     prediction = model.predict(code_padded)
-    predicted_class = label_encoder.inverse_transform([np.argmax(prediction)])[0]
+    predicted_class = np.argmax(prediction)
 
     # Show prediction result
-    messagebox.showinfo("Prediction Result", f"The code snippet is classified as: {predicted_class}")
+    class_names = ['safe', 'vulnerable']  # Update with your actual class labels used during training
+    messagebox.showinfo("Prediction Result", f"The code snippet is classified as: {class_names[predicted_class]}")
 
 # Create the Tkinter GUI window
 window = tk.Tk()
