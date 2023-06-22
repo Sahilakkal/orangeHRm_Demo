@@ -1,31 +1,28 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Requirements to User Stories</title>
-</head>
-<body>
-    <h1>Requirements to User Stories</h1>
-    <form action="/predict" method="post">
-        <label for="requirement">Enter Requirement:</label><br>
-        <textarea id="requirement" name="requirement" rows="4" cols="50"></textarea><br>
-        <input type="submit" value="Submit">
-    </form>
-</body>
-</html>
+from tensorflow.keras.models import load_model
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+import numpy as np
 
+# Load the trained model
+model = load_model('path/to/your/model.h5')  # Replace with the path to your saved model file
 
+# Load the tokenizer
+tokenizer = Tokenizer()
+tokenizer.fit_on_texts(training_data)  # Make sure to use the same tokenizer used during training
 
+# Define a function to preprocess new data
+def preprocess_data(code):
+    code_sequence = tokenizer.texts_to_sequences([code])
+    code_padded = pad_sequences(code_sequence, maxlen=max_length, padding='post')
+    return code_padded
 
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Requirements to User Stories</title>
-</head>
-<body>
-    <h1>Requirements to User Stories</h1>
-    <h2>Input Requirement:</h2>
-    <p>{{ requirement }}</p>
-    <h2>Predicted User Story:</h2>
-    <p>{{ user_story }}</p>
-</body>
-</html>
+# Example usage
+new_code = "your new code here"
+preprocessed_code = preprocess_data(new_code)
+
+# Make predictions using the loaded model
+prediction = model.predict(preprocessed_code)
+predicted_class = np.argmax(prediction)
+
+# Do something with the predicted class
+# ...
+
